@@ -1,10 +1,11 @@
 # TNMN Tunnel Client Installer for Windows (PowerShell)
-# Usage (pipeline):  irm URL | iex
-# Usage (direct):    .\install.ps1 -Token "..." -Server "..."
+# Run: irm URL -OutFile install.ps1; .\install.ps1 -Token "..." -Server "..."
 
 param(
+    [Parameter(Mandatory=$true)]
     [string]$Token,
     [string]$Server = "tnmn.click",
+    [ValidateSet("http","tcp","udp")]
     [string]$Proto = "http",
     [string]$Port = "3000",
     [string]$Name = ""
@@ -13,7 +14,6 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = "ngucungcode/tnmn-client"
 
-# Detect arch
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
 $Asset = "tnmn-windows-${Arch}.exe"
 $InstallDir = if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\tnmn" } else { "$env:USERPROFILE\.local\bin\tnmn" }
@@ -37,7 +37,7 @@ Write-Host "[3/4] Verifying checksum..."
 try {
     $ChecksumsUrl = "https://github.com/$Repo/releases/latest/download/checksums.txt"
     $Checksums = (Invoke-WebRequest -Uri $ChecksumsUrl -UseBasicParsing).Content
-    $ExpectedLine = $Checksums -split "`n" | Where-Object { $_ -match " $Asset`$" }
+    $ExpectedLine = $Checksums -split "`n" | Where-Object { $_ -match " $Asset$" }
     if ($ExpectedLine) {
         $ExpectedHash = ($ExpectedLine -split '\s+')[0].Trim()
         $ActualHash = (Get-FileHash -Path $TempBin -Algorithm SHA256).Hash.ToLower()
