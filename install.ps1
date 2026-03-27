@@ -1,37 +1,54 @@
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$Token,
+# TNMN Tunnel Client Installer for Windows (PowerShell)
+# Usage (pipeline): irm https://raw.githubusercontent.com/ngucungcode/tnmn-client/main/install.ps1 | iex -Token "..." -Server "..."
+# Usage (direct):   .\install.ps1 -Token "..." -Server "..."
+# Usage (env vars): $env:TNMN_TOKEN="..."; irm URL | iex
 
-    [string]$Server = "tnmn.click",
-    [ValidateSet("http","tcp","udp")]
-    [string]$Proto = "http",
-    [string]$Port = "3000",
-    [string]$Name = ""
+# Env vars (pipeline install)
+$Token  = if ($env:TNMN_TOKEN)  { $env:TNMN_TOKEN  } else { $null }
+$Server = if ($env:TNMN_SERVER) { $env:TNMN_SERVER } else { "tnmn.click" }
+$Proto  = if ($env:TNMN_PROTO)  { $env:TNMN_PROTO  } else { "http" }
+$Port   = if ($env:TNMN_PORT)   { $env:TNMN_PORT   } else { "3000" }
+$Name   = if ($env:TNMN_NAME)   { $env:TNMN_NAME   } else { "" }
+
+# Named params (direct install)
+param(
+    [string]$TokenParam,
+    [string]$ServerParam,
+    [string]$ProtoParam,
+    [string]$PortParam,
+    [string]$NameParam
 )
+if ($TokenParam)  { $Token  = $TokenParam }
+if ($ServerParam) { $Server = $ServerParam }
+if ($ProtoParam)  { $Proto  = $ProtoParam }
+if ($PortParam)   { $Port   = $PortParam }
+if ($NameParam)   { $Name   = $NameParam }
+
+# Validate
+if (-not $Token) {
+    Write-Host "ERROR: Token required. Use -Token param or set $env:TNMN_TOKEN"
+    exit 1
+}
 
 $ErrorActionPreference = "Stop"
 $Repo = "ngucungcode/tnmn-client"
 
 # Detect arch
-if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
-    $Arch = "arm64"
-} else {
-    $Arch = "amd64"
-}
+$Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
 $Asset = "tnmn-windows-${Arch}.exe"
-$InstallDir = if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\tnmn" } else { "$env:USERPROFILE\.local\bin\tnmn" }
-$BinPath = "$InstallDir\tnmn.exe"
+$InstallDir = if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA	nmn" } else { "$env:USERPROFILE\.localin	nmn" }
+$BinPath = "$InstallDir	nmn.exe"
 
 $DownloadUrl = "https://github.com/$Repo/releases/latest/download/$Asset"
-$TempBin = "$env:TEMP\tnmn_install_$PID.exe"
+$TempBin = "$env:TEMP	nmn_install_$PID.exe"
 
-Write-Host "[1/4] Detecting platform: Windows / $Arch"
+Write-Host "[1/4] Platform: Windows / $Arch"
 Write-Host "[2/4] Downloading binary..."
 
 try {
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempBin -UseBasicParsing
 } catch {
-    Write-Host "ERROR: Failed to download from $DownloadUrl"
+    Write-Host "ERROR: Download failed from $DownloadUrl"
     Write-Host " $_"
     exit 1
 }
@@ -64,11 +81,10 @@ New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 Move-Item -Path $TempBin -Destination $BinPath -Force
 
 # Add to PATH
-$PathEntry = $InstallDir
 $CurrentPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($CurrentPath -notlike "*$InstallDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$CurrentPath;$InstallDir", "User")
-    Write-Host "Added $InstallDir to your user PATH"
+    $env:Path = "$env:Path;$InstallDir"
 }
 
 Write-Host ""
@@ -77,7 +93,7 @@ Write-Host ""
 
 if ($Name) {
     Write-Host "Logging in..."
-    & $BinPath login --token $Token --server $Server 2>`$null
+    & $BinPath login --token $Token --server $Server 2>$null
     Write-Host "Starting tunnel..."
     & $BinPath $Proto $Port --name $Name
 } else {
